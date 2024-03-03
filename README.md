@@ -102,3 +102,13 @@ python tools/benchmark.py ${CONFIG} ${CEHCKPOINT}
 
 ## Citation
 If you find our paper or codebase useful in your research, please give us a star and cite our paper.
+```
+@InProceedings{Yuan_2024_streammapnet,
+    author    = {Yuan, Tianyuan and Liu, Yicheng and Wang, Yue and Wang, Yilun and Zhao, Hang},
+    title     = {StreamMapNet: Streaming Mapping Network for Vectorized Online HD Map Construction},
+    booktitle = {Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
+    month     = {January},
+    year      = {2024},
+    pages     = {7356-7365}
+}
+```
