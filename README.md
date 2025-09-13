@@ -2,8 +2,7 @@
   <h1>PSKDNet</h1>
   
   <h3>PSKDNet: Position-Supervised Keypoints Diffusion Network for Online Vectorized HD Map Construction</h3>
-  
-  <img src="./resources/car.png" width="950px">
+
 </div>
 
 ## Introduction
