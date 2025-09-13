@@ -1,23 +1,21 @@
 <div align="center">
-  <h1>StreamMapNet</h1>
+  <h1>PSKDNet</h1>
   
-  <h3>[WACV 2024] StreamMapNet: Streaming Mapping Network for Vectorized Online HD Map Construction </h3>
+  <h3>PSKDNet: Position-Supervised Keypoints Diffusion Network for Online Vectorized HD Map Construction</h3>
   
-  [![arXiv](https://img.shields.io/badge/arXiv-Paper-<COLOR>.svg)](https://arxiv.org/abs/2308.12570)
-  
-  <img src="./resources/pipeline_newnew.png" width="950px">
+  <img src="./resources/car.png" width="950px">
 </div>
 
 ## Introduction
-This repository is an official implementation of StreamMapNet.
+This repository is an official implementation of PSKDNet.
 
 ## Getting Started
 ### 1. Environment
 **Step 1.** Create conda environment and activate it.
 
 ```
-conda create --name streammapnet python=3.8 -y
-conda activate streammapnet
+conda create --name pskdnet python=3.8 -y
+conda activate pskdnet
 ```
 
 **Step 2.** Install PyTorch.
@@ -79,36 +77,4 @@ To test a model's inference speed:
 
 ```
 python tools/benchmark.py ${CONFIG} ${CEHCKPOINT}
-```
-
-## Results
-
-### Results on Argoverse2 newsplit
-| Range | $\mathrm{AP}_{ped}$ | $\mathrm{AP}_{div}$| $\mathrm{AP}_{bound}$ | $\mathrm{AP}$ | Config | Epoch | Checkpoint |
-| :---: |   :---:  |  :---:  | :---:   |:---:|:---: |:---:  | :---:   |
-| $60\times 30\ m$ | 57.9 | 55.7| 61.3| 58.3| [Config](./plugin/configs/av2_newsplit_608_60x30_30e.py) | 30 | [ckpt](https://drive.google.com/file/d/1p6PZDGbVoxedU0YqEbvSBjCMkcTx91ld/view?usp=share_link)|
-| $100\times 50\ m$ |60.0 | 45.9 | 48.9 | 51.6 | [Config](./plugin/configs/av2_newsplit_608_100x0_30e.py5) |30 | [ckpt](https://drive.google.com/file/d/1PkOiGFLGyQ7GUljeRS7REQS6Cv_pV1qx/view?usp=share_link)|
-
-### Results on NuScenes newsplit
-| Range | $\mathrm{AP}_{ped}$ | $\mathrm{AP}_{div}$| $\mathrm{AP}_{bound}$ | $\mathrm{AP}$ | Config | Epoch | Checkpoint |
-| :---: |   :---:  |  :---:  | :---:      |:---:|:---: |:---:   | :---:      |
-| $60\times 30\ m$ | 32.2 | 29.3 | 40.8 | 34.1 | [Config](./plugin/configs/nusc_newsplit_480_60x30_24e.py) | 24| [ckpt](https://drive.google.com/file/d/1L9IRkd_Sg_hPu8SSagWBEZahUD_dvMeG/view?usp=share_link)|
-| $100\times 50\ m$ | 25.6 | 17.4 | 24.3 | 22.4 | [Config](./plugin/configs/nusc_newsplit_480_100x50_24e.py)| 24 | [ckpt](https://drive.google.com/file/d/1nB4r108-rj87Ain7s8HHEo5hXvxZMMre/view?usp=share_link)|
-
-### Results on NuScenes oldsplit
-| Range | $\mathrm{AP}_{ped}$ | $\mathrm{AP}_{div}$| $\mathrm{AP}_{bound}$ | $\mathrm{AP}$ | Config | Epoch | Checkpoint |
-| :---: |   :---:  |  :---:  | :---:      |:---:|:---:|:---:   | :---:      |
-| $60\times 30\ m$ | 61.7| 66.3 | 62.1 | 63.4 | [Config](./plugin/configs/nusc_baseline_480_60x30_30e.py) | 30| [ckpt](https://drive.google.com/file/d/1-n6DGu23KkSO8PFfJ01ofmtUed0zOMZ_/view?usp=share_link)|
-
-## Citation
-If you find our paper or codebase useful in your research, please give us a star and cite our paper.
-```
-@InProceedings{Yuan_2024_streammapnet,
-    author    = {Yuan, Tianyuan and Liu, Yicheng and Wang, Yue and Wang, Yilun and Zhao, Hang},
-    title     = {StreamMapNet: Streaming Mapping Network for Vectorized Online HD Map Construction},
-    booktitle = {Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
-    month     = {January},
-    year      = {2024},
-    pages     = {7356-7365}
-}
 ```
