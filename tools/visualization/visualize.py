@@ -9,9 +9,9 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Visualize groundtruth and results')
     parser.add_argument('config', help='config file path')
-    parser.add_argument('idx', type=int,
+    parser.add_argument('--idx', type=int, default=1,
         help='which scene to visualize')
-    parser.add_argument('--result', 
+    parser.add_argument('--result',
         default=None,
         help='prediction result to visualize'
         'If submission file is not provided, only gt will be visualized')

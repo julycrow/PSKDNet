@@ -19,7 +19,8 @@ from mmdet.models.utils.transformer import Transformer
 
 from .CustomMSDeformableAttention import CustomMSDeformableAttention
 from mmdet.models.utils.transformer import inverse_sigmoid
-    
+
+
 @TRANSFORMER_LAYER_SEQUENCE.register_module()
 class MapTransformerDecoder_new(BaseModule):
     """Implements the decoder in DETR transformer.
@@ -29,13 +30,13 @@ class MapTransformerDecoder_new(BaseModule):
             `LN`.
     """
 
-    def __init__(self, 
-                 transformerlayers=None, 
-                 num_layers=None, 
+    def __init__(self,
+                 transformerlayers=None,
+                 num_layers=None,
                  prop_add_stage=0,
                  return_intermediate=True,
                  init_cfg=None):
-        
+
         super().__init__(init_cfg)
         if isinstance(transformerlayers, dict):
             transformerlayers = [
@@ -52,7 +53,7 @@ class MapTransformerDecoder_new(BaseModule):
         self.pre_norm = self.layers[0].pre_norm
         self.return_intermediate = return_intermediate
         self.prop_add_stage = prop_add_stage
-        assert prop_add_stage >= 0  and prop_add_stage < num_layers
+        assert prop_add_stage >= 0 and prop_add_stage < num_layers
 
     def forward(self,
                 query,
@@ -98,7 +99,7 @@ class MapTransformerDecoder_new(BaseModule):
                 bs, topk, embed_dims = prop_query.shape
                 output = output.permute(1, 0, 2)
                 with torch.no_grad():
-                    tmp_scores, _ = cls_branches[lid](output).max(-1) # (bs, num_q)
+                    tmp_scores, _ = cls_branches[lid](output).max(-1)  # (bs, num_q)
                 new_query = []
                 new_refpts = []
                 for i in range(bs):
@@ -106,18 +107,18 @@ class MapTransformerDecoder_new(BaseModule):
                         new_query.append(output[i])
                         new_refpts.append(reference_points[i])
                     else:
-                        _, valid_idx = torch.topk(tmp_scores[i], k=num_queries-topk, dim=-1)
+                        _, valid_idx = torch.topk(tmp_scores[i], k=num_queries - topk, dim=-1)
                         new_query.append(torch.cat([prop_query[i], output[i][valid_idx]], dim=0))
                         new_refpts.append(torch.cat([prop_reference_points[i], reference_points[i][valid_idx]], dim=0))
-                
+
                 output = torch.stack(new_query).permute(1, 0, 2)
                 reference_points = torch.stack(new_refpts)
                 assert list(output.shape) == [num_queries, bs, embed_dims]
 
             tmp = reference_points.clone()
-            tmp[..., 1:2] = 1.0 - reference_points[..., 1:2] # reverse y-axis
+            tmp[..., 1:2] = 1.0 - reference_points[..., 1:2]  # reverse y-axis
             # reference_points = tmp
-            
+
             output = layer(
                 output,
                 key,
@@ -129,29 +130,30 @@ class MapTransformerDecoder_new(BaseModule):
                 level_start_index=level_start_index,
                 query_key_padding_mask=None,
                 **kwargs)
-            
-            reg_points = reg_branches[lid](output.permute(1, 0, 2)) # (bs, num_q, 2*num_points)
+
+            reg_points = reg_branches[lid](output.permute(1, 0, 2))  # (bs, num_q, 2*num_points)
             bs, num_queries, num_points2 = reg_points.shape
-            reg_points = reg_points.view(bs, num_queries, num_points2//2, 2) # range (0, 1)
-            
+            reg_points = reg_points.view(bs, num_queries, num_points2 // 2, 2)  # range (0, 1)
+
             if predict_refine:
                 new_reference_points = reg_points + inverse_sigmoid(
                     reference_points
                 )
                 new_reference_points = new_reference_points.sigmoid()
             else:
-                new_reference_points = reg_points.sigmoid() # (bs, num_q, num_points, 2)
-            
+                new_reference_points = reg_points.sigmoid()  # (bs, num_q, num_points, 2)
+
             reference_points = new_reference_points.clone().detach()
 
             if self.return_intermediate:
-                intermediate.append(output.permute(1, 0, 2)) # [(bs, num_q, embed_dims)]
-                intermediate_reference_points.append(new_reference_points) # (bs, num_q, num_points, 2)
+                intermediate.append(output.permute(1, 0, 2))  # [(bs, num_q, embed_dims)]
+                intermediate_reference_points.append(new_reference_points)  # (bs, num_q, num_points, 2)
 
         if self.return_intermediate:
             return intermediate, intermediate_reference_points
 
         return output, reference_points
+
 
 @TRANSFORMER_LAYER.register_module()
 class MapTransformerLayer(BaseTransformerLayer):
@@ -252,7 +254,7 @@ class MapTransformerLayer(BaseTransformerLayer):
                 shape [bs, num_queries]. Only used in `self_attn` layer.
                 Defaults to None.
             key_padding_mask (Tensor): ByteTensor for `query`, with
-                shape [bs, num_keys]. Default: None.
+                shape [bs, num_keys]. Default: None.torch.Size([4, 5000])
 
         Returns:
             Tensor: forwarded results with shape [num_queries, bs, embed_dims].
@@ -261,7 +263,7 @@ class MapTransformerLayer(BaseTransformerLayer):
         norm_index = 0
         attn_index = 0
         ffn_index = 0
-        identity = query
+        identity = query  # torch.Size([100, 4, 512])
         if attn_masks is None:
             attn_masks = [None for _ in range(self.num_attn)]
         elif isinstance(attn_masks, torch.Tensor):
@@ -272,9 +274,9 @@ class MapTransformerLayer(BaseTransformerLayer):
                           f'{self.__class__.__name__} ')
         else:
             assert len(attn_masks) == self.num_attn, f'The length of ' \
-                        f'attn_masks {len(attn_masks)} must be equal ' \
-                        f'to the number of attention in ' \
-                        f'operation_order {self.num_attn}'
+                                                     f'attn_masks {len(attn_masks)} must be equal ' \
+                                                     f'to the number of attention in ' \
+                                                     f'operation_order {self.num_attn}'
 
         for layer in self.operation_order:
             if layer == 'self_attn':
@@ -282,9 +284,9 @@ class MapTransformerLayer(BaseTransformerLayer):
                     temp_key = temp_value = query
                 else:
                     temp_key = temp_value = torch.cat([memory_query, query], dim=0)
-                
+
                 query = self.attentions[attn_index](
-                    query,
+                    query,  # torch.Size([100, 4, 512])
                     temp_key,
                     temp_value,
                     identity if self.pre_norm else None,
@@ -292,7 +294,7 @@ class MapTransformerLayer(BaseTransformerLayer):
                     key_pos=query_pos,
                     attn_mask=attn_masks[attn_index],
                     key_padding_mask=query_key_padding_mask,
-                    **kwargs)
+                    **kwargs)  # 'reference_points':torch.Size([4, 100, 20, 2])
                 attn_index += 1
                 identity = query
 
@@ -320,6 +322,7 @@ class MapTransformerLayer(BaseTransformerLayer):
                 ffn_index += 1
 
         return query
+
 
 @TRANSFORMER.register_module()
 class MapTransformer(Transformer):
@@ -435,17 +438,17 @@ class MapTransformer(Transformer):
             feat_flatten.append(feat)
             mask_flatten.append(mask)
         feat_flatten = torch.cat(feat_flatten, 1)
-        mask_flatten = torch.cat(mask_flatten, 1)
+        mask_flatten = torch.cat(mask_flatten, 1)  # torch.Size([4, 5000])
         # lvl_pos_embed_flatten = torch.cat(lvl_pos_embed_flatten, 1)
         spatial_shapes = torch.as_tensor(
             spatial_shapes, dtype=torch.long, device=feat_flatten.device)
         level_start_index = torch.cat((spatial_shapes.new_zeros(
-            (1, )), spatial_shapes.prod(1).cumsum(0)[:-1]))
-        
+            (1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
+
         feat_flatten = feat_flatten.permute(1, 0, 2)  # (H*W, bs, embed_dims)
 
         # decoder
-        query = query_embed.permute(1, 0, 2) # (num_q, bs, embed_dims)
+        query = query_embed.permute(1, 0, 2)  # (num_q, bs, embed_dims)
         if memory_query is not None:
             memory_query = memory_query.permute(1, 0, 2)
         inter_states, inter_references = self.decoder(

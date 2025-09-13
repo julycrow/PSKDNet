@@ -130,21 +130,21 @@ class LinesL1Cost(object):
                 shape [num_pred, num_gt]
         """
         
-        if self.permute:
+        if self.permute:  # True
             assert len(gt_lines.shape) == 3
         else:
             assert len(gt_lines.shape) == 2
 
-        num_pred, num_gt = len(lines_pred), len(gt_lines)
+        num_pred, num_gt = len(lines_pred), len(gt_lines)  # 100，14
         if self.permute:
             # permute-invarint labels
-            gt_lines = gt_lines.flatten(0, 1) # (num_gt*num_permute, 2*num_pts)
+            gt_lines = gt_lines.flatten(0, 1)  # (num_gt*num_permute, 2*num_pts) torch.Size([532, 40])
 
         num_pts = lines_pred.shape[-1]//2
 
         if self.beta > 0:
-            lines_pred = lines_pred.unsqueeze(1).repeat(1, len(gt_lines), 1)
-            gt_lines = gt_lines.unsqueeze(0).repeat(num_pred, 1, 1)
+            lines_pred = lines_pred.unsqueeze(1).repeat(1, len(gt_lines), 1)  # torch.Size([100, 40])->torch.Size([100, 532, 40])
+            gt_lines = gt_lines.unsqueeze(0).repeat(num_pred, 1, 1)  # torch.Size([532, 40])->torch.Size([100, 532, 40])
             dist_mat = smooth_l1_loss(lines_pred, gt_lines, reduction='none', beta=self.beta).sum(-1)
         
         else:
@@ -387,9 +387,9 @@ class MapQueriesCost(object):
                 'masks_gt': gts['masks'],
             }
 
-        reg_cost = self.reg_cost(preds['lines'], gts['lines'], **regkwargs)
+        reg_cost = self.reg_cost(preds['lines'], gts['lines'], **regkwargs)  # preds['lines']-torch.Size([100, 40]), gts['lines']-torch.Size([14, 38, 40])
         if self.reg_cost.permute:
-            reg_cost, gt_permute_idx = reg_cost
+            reg_cost, gt_permute_idx = reg_cost  # torch.Size([100, 14]), torch.Size([100, 14])
 
         # weighted sum of above three costs
         cost = cls_cost + reg_cost

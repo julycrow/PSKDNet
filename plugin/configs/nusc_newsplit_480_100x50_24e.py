@@ -64,7 +64,7 @@ num_points = 20
 permute = True
 
 model = dict(
-    type='StreamMapNet',
+    type='PSKDNet',
     roi_size=roi_size,
     bev_h=bev_h,
     bev_w=bev_w,

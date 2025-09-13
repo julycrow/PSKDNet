@@ -2,3 +2,5 @@ from .deformable_transformer import DeformableDetrTransformer_, DeformableDetrTr
 from .base_transformer import PlaceHolderEncoder
 from .CustomMSDeformableAttention import CustomMSDeformableAttention
 from .MapTransformer import MapTransformer, MapTransformerDecoder_new, MapTransformerLayer
+
+from .particle_transformer import ParticleTransformer, ParticleTransformerDecoder, ParticleTransformerDecoderLayer

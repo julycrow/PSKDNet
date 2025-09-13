@@ -104,13 +104,13 @@ class StreamMapNet(BaseMapper):
         fused_feats_list = []
 
         memory = self.bev_memory.get(img_metas)
-        bev_memory, pose_memory = memory['tensor'], memory['img_metas']
+        bev_memory, pose_memory = memory['tensor'], memory['img_metas']  # torch.Size([256, 50, 100]), pose_memory和img_metas类型一样
         is_first_frame_list = memory['is_first_frame']
 
         for i in range(bs):
             is_first_frame = is_first_frame_list[i]
             if is_first_frame:
-                new_feat = self.stream_fusion_neck(curr_bev_feats[i].clone().detach(), curr_bev_feats[i])
+                new_feat = self.stream_fusion_neck(curr_bev_feats[i].clone().detach(), curr_bev_feats[i])  # torch.Size([256, 50, 100])->torch.Size([256, 50, 100])
                 fused_feats_list.append(new_feat)
             else:
                 # else, warp buffered bev feature to current pose
@@ -127,22 +127,22 @@ class StreamMapNet(BaseMapper):
                 curr_e2g_matrix[:3, :3] = curr_e2g_rot
                 curr_e2g_matrix[:3, 3] = curr_e2g_trans
 
-                curr2prev_matrix = prev_g2e_matrix @ curr_e2g_matrix
-                prev_coord = torch.einsum('lk,ijk->ijl', curr2prev_matrix, self.plane).float()[..., :2]
-
+                curr2prev_matrix = prev_g2e_matrix @ curr_e2g_matrix  # torch.Size([4, 4])
+                prev_coord = torch.einsum('lk,ijk->ijl', curr2prev_matrix, self.plane).float()[..., :2]  #  self.plane:torch.Size([50, 100, 4])采样网格坐标,在__init__中定义的, prev_coord:torch.Size([50, 100, 2])
+                # prev_coord的转换过程类似于对bevformer的encoder中固定的ref_x,y(self.plane)进行变换，将采样网格从当前帧的坐标系转换到上一帧的坐标系,目的是将上一帧的bev特征映射到当前帧的bev特征上
                 # from (-30, 30) or (-15, 15) to (-1, 1)
                 prev_coord[..., 0] = prev_coord[..., 0] / (self.roi_size[0]/2)
                 prev_coord[..., 1] = -prev_coord[..., 1] / (self.roi_size[1]/2)
 
-                warped_feat = F.grid_sample(bev_memory[i].unsqueeze(0), 
+                warped_feat = F.grid_sample(bev_memory[i].unsqueeze(0),  # torch.Size([256, 50, 100])
                                 prev_coord.unsqueeze(0), 
-                                padding_mode='zeros', align_corners=False).squeeze(0)
-                new_feat = self.stream_fusion_neck(warped_feat, curr_bev_feats[i])
+                                padding_mode='zeros', align_corners=False).squeeze(0)  # 将上一帧的bev特征映射到当前帧的bev特征上, torch.Size([256, 50, 100])
+                new_feat = self.stream_fusion_neck(warped_feat, curr_bev_feats[i])  # torch.Size([256, 50, 100])
                 fused_feats_list.append(new_feat)
 
         fused_feats = torch.stack(fused_feats_list, dim=0)
 
-        self.bev_memory.update(fused_feats, img_metas)
+        self.bev_memory.update(fused_feats, img_metas)  # 更新bev_memory
         
         return fused_feats
 
@@ -174,7 +174,7 @@ class StreamMapNet(BaseMapper):
         
         if self.streaming_bev:
             self.bev_memory.train()
-            _bev_feats = self.update_bev_feature(_bev_feats, img_metas)
+            _bev_feats = self.update_bev_feature(_bev_feats, img_metas)  # torch.Size([4, 256, 50, 100])
         
         # Neck
         bev_feats = self.neck(_bev_feats)

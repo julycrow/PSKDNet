@@ -136,12 +136,11 @@ def create_av2_infos_mp(root_path,
 def get_data_from_logid(log_id, loaders, data_root):
     samples = []
     discarded = 0
-
     # find corresponding loader
     for i in range(3):
         if log_id in loaders[i]._sdb.get_valid_logs():
             loader = loaders[i]
-    
+
     # use lidar timestamps to query all sensors.
     # the frequency is 10Hz
     cam_timestamps = loader._sdb.per_log_lidar_timestamps_index[log_id]

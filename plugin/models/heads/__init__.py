@@ -1,1 +1,2 @@
 from .MapDetectorHead import MapDetectorHead
+from .ParticleMapDetectorHead import ParticleMapDetectorHead

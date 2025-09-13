@@ -8,8 +8,7 @@ from mmcv.runner import load_checkpoint, wrap_fp16_model
 import sys
 from mmdet3d.datasets import build_dataset
 from mmdet3d.models import build_detector
-from tools.misc.fuse_conv_bn import fuse_module
-
+from mmcv.cnn import fuse_conv_bn as fuse_module
 def parse_args():
     parser = argparse.ArgumentParser(description='MMDet benchmark a model')
     parser.add_argument('config', help='test config file path')

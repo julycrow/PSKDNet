@@ -64,7 +64,7 @@ num_points = 20
 permute = True
 
 model = dict(
-    type='StreamMapNet',
+    type='PSKDNet',
     roi_size=roi_size,
     bev_h=bev_h,
     bev_w=bev_w,
@@ -282,7 +282,7 @@ test_pipeline = [
 # DO NOT CHANGE
 eval_config = dict(
     type='AV2Dataset',
-    ann_file='./datasets/av2/av2_map_infos_val_newsplit.pkl',
+    ann_file='./data/argoverse2/sensor/av2_map_infos_val_newsplit.pkl',
     meta=meta,
     roi_size=roi_size,
     cat2id=cat2id,
@@ -306,7 +306,7 @@ data = dict(
     workers_per_gpu=4,
     train=dict(
         type='AV2Dataset',
-        ann_file='./datasets/av2/av2_map_infos_train_newsplit.pkl',
+        ann_file='./data/argoverse2/sensor/av2_map_infos_train_newsplit.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,
@@ -316,7 +316,7 @@ data = dict(
     ),
     val=dict(
         type='AV2Dataset',
-        ann_file='./datasets/av2/av2_map_infos_val_newsplit.pkl',
+        ann_file='./data/argoverse2/sensor/av2_map_infos_val_newsplit.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,
@@ -328,7 +328,7 @@ data = dict(
     ),
     test=dict(
         type='AV2Dataset',
-        ann_file='./datasets/av2/av2_map_infos_val_newsplit.pkl',
+        ann_file='./data/argoverse2/sensor/av2_map_infos_val_newsplit.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,

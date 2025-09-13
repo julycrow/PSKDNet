@@ -14,10 +14,11 @@ from mmdet.models.utils.transformer import inverse_sigmoid
 from ..utils.memory_buffer import StreamTensorMemory
 from ..utils.query_update import MotionMLP
 
+
 @HEADS.register_module(force=True)
 class MapDetectorHead(nn.Module):
 
-    def __init__(self, 
+    def __init__(self,
                  num_queries,
                  num_classes=3,
                  in_channels=128,
@@ -36,7 +37,7 @@ class MapDetectorHead(nn.Module):
                  loss_cls=dict(),
                  loss_reg=dict(),
                  assigner=dict()
-                ):
+                 ):
         super().__init__()
         self.num_queries = num_queries
         self.num_classes = num_classes
@@ -47,10 +48,10 @@ class MapDetectorHead(nn.Module):
         self.bev_pos = bev_pos
         self.num_points = num_points
         self.coord_dim = coord_dim
-        
+
         self.sync_cls_avg_factor = sync_cls_avg_factor
         self.bg_cls_weight = bg_cls_weight
-        
+
         if streaming_cfg:
             self.streaming_query = streaming_cfg['streaming']
         else:
@@ -69,9 +70,9 @@ class MapDetectorHead(nn.Module):
 
             self.query_update = MotionMLP(c_dim=c_dim, f_dim=self.embed_dims, identity=True)
             self.target_memory = StreamTensorMemory(self.batch_size)
-            
+
         self.register_buffer('roi_size', torch.tensor(roi_size, dtype=torch.float32))
-        origin = (-roi_size[0]/2, -roi_size[1]/2)
+        origin = (-roi_size[0] / 2, -roi_size[1] / 2)
         self.register_buffer('origin', torch.tensor(origin, dtype=torch.float32))
 
         sampler_cfg = dict(type='PseudoSampler')
@@ -87,11 +88,10 @@ class MapDetectorHead(nn.Module):
             self.cls_out_channels = num_classes
         else:
             self.cls_out_channels = num_classes + 1
-        
+
         self._init_embedding()
         self._init_branch()
         self.init_weights()
-
 
     def init_weights(self):
         """Initialize weights of the DeformDETR head."""
@@ -99,7 +99,7 @@ class MapDetectorHead(nn.Module):
         for p in self.input_proj.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
-        
+
         xavier_init(self.reference_points_embed, distribution='uniform', bias=0.)
 
         self.transformer.init_weights()
@@ -120,7 +120,7 @@ class MapDetectorHead(nn.Module):
             else:
                 m = self.cls_branches
                 nn.init.constant_(m.bias, bias_init)
-        
+
         if self.streaming_query:
             if isinstance(self.query_update, MotionMLP):
                 self.query_update.init_weights()
@@ -133,7 +133,7 @@ class MapDetectorHead(nn.Module):
     def _init_embedding(self):
         positional_encoding = dict(
             type='SinePositionalEncoding',
-            num_feats=self.embed_dims//2,
+            num_feats=self.embed_dims // 2,
             normalize=True
         )
         self.bev_pos_embed = build_positional_encoding(positional_encoding)
@@ -143,8 +143,8 @@ class MapDetectorHead(nn.Module):
                                             self.embed_dims)
 
         self.reference_points_embed = nn.Linear(self.embed_dims, self.num_points * 2)
-        
-    def _init_branch(self,):
+
+    def _init_branch(self, ):
         """Initialize classification branch and regression branch of head."""
         self.input_proj = Conv2d(
             self.in_channels, self.embed_dims, kernel_size=1)
@@ -152,13 +152,13 @@ class MapDetectorHead(nn.Module):
         cls_branch = Linear(self.embed_dims, self.cls_out_channels)
 
         reg_branch = [
-            Linear(self.embed_dims, 2*self.embed_dims),
-            nn.LayerNorm(2*self.embed_dims),
+            Linear(self.embed_dims, 2 * self.embed_dims),
+            nn.LayerNorm(2 * self.embed_dims),
             nn.ReLU(),
-            Linear(2*self.embed_dims, 2*self.embed_dims),
-            nn.LayerNorm(2*self.embed_dims),
+            Linear(2 * self.embed_dims, 2 * self.embed_dims),
+            nn.LayerNorm(2 * self.embed_dims),
             nn.ReLU(),
-            Linear(2*self.embed_dims, self.num_points * self.coord_dim),
+            Linear(2 * self.embed_dims, self.num_points * self.coord_dim),
         ]
         reg_branch = nn.Sequential(*reg_branch)
 
@@ -184,9 +184,9 @@ class MapDetectorHead(nn.Module):
         # Add 2D coordinate grid embedding
         B, C, H, W = bev_features.shape
         bev_mask = bev_features.new_zeros(B, H, W)
-        bev_pos_embeddings = self.bev_pos_embed(bev_mask) # (bs, embed_dims, H, W)
-        bev_features = self.input_proj(bev_features) + bev_pos_embeddings # (bs, embed_dims, H, W)
-    
+        bev_pos_embeddings = self.bev_pos_embed(bev_mask)  # (bs, embed_dims, H, W)
+        bev_features = self.input_proj(bev_features) + bev_pos_embeddings  # (bs, embed_dims, H, W)
+
         assert list(bev_features.shape) == [B, self.embed_dims, H, W]
         return bev_features
 
@@ -194,7 +194,7 @@ class MapDetectorHead(nn.Module):
         bs = query_embedding.shape[0]
         propagated_query_list = []
         prop_reference_points_list = []
-        
+
         tmp = self.query_memory.get(img_metas)
         query_memory, pose_memory = tmp['tensor'], tmp['img_metas']
 
@@ -222,7 +222,7 @@ class MapDetectorHead(nn.Module):
                 prev_e2g_rot = self.roi_size.new_tensor(pose_memory[i]['ego2global_rotation'], dtype=torch.float64)
                 curr_e2g_trans = self.roi_size.new_tensor(img_metas[i]['ego2global_translation'], dtype=torch.float64)
                 curr_e2g_rot = self.roi_size.new_tensor(img_metas[i]['ego2global_rotation'], dtype=torch.float64)
-                
+
                 prev_e2g_matrix = torch.eye(4, dtype=torch.float64).to(query_embedding.device)
                 prev_e2g_matrix[:3, :3] = prev_e2g_rot
                 prev_e2g_matrix[:3, 3] = prev_e2g_trans
@@ -236,59 +236,60 @@ class MapDetectorHead(nn.Module):
 
                 prop_q = query_memory[i]
                 query_memory_updated = self.query_update(
-                    prop_q, # (topk, embed_dims)
+                    prop_q,  # (topk, embed_dims)
                     pos_encoding.view(1, -1).repeat(len(query_memory[i]), 1)
                 )
                 propagated_query_list.append(query_memory_updated.clone())
 
-                pred = self.reg_branches[-1](query_memory_updated).sigmoid() # (num_prop, 2*num_pts)
-                assert list(pred.shape) == [self.topk_query, 2*self.num_points]
+                pred = self.reg_branches[-1](query_memory_updated).sigmoid()  # (num_prop, 2*num_pts)
+                assert list(pred.shape) == [self.topk_query, 2 * self.num_points]
 
                 if return_loss:
                     targets = target_memory[i]
 
-                    weights = targets.new_ones((self.topk_query, 2*self.num_points))
+                    weights = targets.new_ones((self.topk_query, 2 * self.num_points))
                     bg_idx = torch.all(targets.view(self.topk_query, -1) == 0.0, dim=1)
                     num_pos = num_pos + (self.topk_query - bg_idx.sum())
                     weights[bg_idx, :] = 0.0
 
-                    denormed_targets = targets * self.roi_size + self.origin # (topk, num_pts, 2)
+                    denormed_targets = targets * self.roi_size + self.origin  # (topk, num_pts, 2)
                     denormed_targets = torch.cat([
                         denormed_targets,
-                        denormed_targets.new_zeros((self.topk_query, self.num_points, 1)), # z-axis
-                        denormed_targets.new_ones((self.topk_query, self.num_points, 1)) # 4-th dim
-                    ], dim=-1) # (num_prop, num_pts, 4)
+                        denormed_targets.new_zeros((self.topk_query, self.num_points, 1)),  # z-axis
+                        denormed_targets.new_ones((self.topk_query, self.num_points, 1))  # 4-th dim
+                    ], dim=-1)  # (num_prop, num_pts, 4)
                     assert list(denormed_targets.shape) == [self.topk_query, self.num_points, 4]
                     curr_targets = torch.einsum('lk,ijk->ijl', prev2curr_matrix.float(), denormed_targets)
-                    normed_targets = (curr_targets[..., :2] - self.origin) / self.roi_size # (num_prop, num_pts, 2)
-                    normed_targets = torch.clip(normed_targets, min=0., max=1.).reshape(-1, 2*self.num_points)
+                    normed_targets = (curr_targets[..., :2] - self.origin) / self.roi_size  # (num_prop, num_pts, 2)
+                    normed_targets = torch.clip(normed_targets, min=0., max=1.).reshape(-1, 2 * self.num_points)
                     # (num_prop, 2*num_pts)
                     trans_loss += self.loss_reg(pred, normed_targets, weights, avg_factor=1.0)
-                
+
                 # ref pts
                 prev_ref_pts = ref_pts_memory[i]
-                denormed_ref_pts = prev_ref_pts * self.roi_size + self.origin # (num_prop, num_pts, 2)
+                denormed_ref_pts = prev_ref_pts * self.roi_size + self.origin  # (num_prop, num_pts, 2)
                 assert list(prev_ref_pts.shape) == [self.topk_query, self.num_points, 2]
                 denormed_ref_pts = torch.cat([
                     denormed_ref_pts,
-                    denormed_ref_pts.new_zeros((self.topk_query, self.num_points, 1)), # z-axis
-                    denormed_ref_pts.new_ones((self.topk_query, self.num_points, 1)) # 4-th dim
-                ], dim=-1) # (num_prop, num_pts, 4)
+                    denormed_ref_pts.new_zeros((self.topk_query, self.num_points, 1)),  # z-axis
+                    denormed_ref_pts.new_ones((self.topk_query, self.num_points, 1))  # 4-th dim
+                ], dim=-1)  # (num_prop, num_pts, 4)
                 assert list(denormed_ref_pts.shape) == [self.topk_query, self.num_points, 4]
 
                 curr_ref_pts = torch.einsum('lk,ijk->ijl', prev2curr_matrix, denormed_ref_pts.double()).float()
-                normed_ref_pts = (curr_ref_pts[..., :2] - self.origin) / self.roi_size # (num_prop, num_pts, 2)
+                normed_ref_pts = (curr_ref_pts[..., :2] - self.origin) / self.roi_size  # (num_prop, num_pts, 2)
                 normed_ref_pts = torch.clip(normed_ref_pts, min=0., max=1.)
 
                 prop_reference_points_list.append(normed_ref_pts)
-                
-        prop_query_embedding = torch.stack(propagated_query_list) # (bs, topk, embed_dims)
-        prop_ref_pts = torch.stack(prop_reference_points_list) # (bs, topk, num_pts, 2)
+
+        prop_query_embedding = torch.stack(propagated_query_list)  # (bs, topk, embed_dims)
+        prop_ref_pts = torch.stack(prop_reference_points_list)  # (bs, topk, num_pts, 2)
         assert list(prop_query_embedding.shape) == [bs, self.topk_query, self.embed_dims]
         assert list(prop_ref_pts.shape) == [bs, self.topk_query, self.num_points, 2]
-        
-        init_reference_points = self.reference_points_embed(query_embedding).sigmoid() # (bs, num_q, 2*num_pts)
-        init_reference_points = init_reference_points.view(bs, self.num_queries, self.num_points, 2) # (bs, num_q, num_pts, 2)
+
+        init_reference_points = self.reference_points_embed(query_embedding).sigmoid()  # (bs, num_q, 2*num_pts)
+        init_reference_points = init_reference_points.view(bs, self.num_queries, self.num_points,
+                                                           2)  # (bs, num_q, num_pts, 2)
         memory_query_embedding = None
 
         if return_loss:
@@ -318,46 +319,48 @@ class MapDetectorHead(nn.Module):
         # pos_embed = self.positional_encoding(img_masks)
         pos_embed = None
 
-        query_embedding = self.query_embedding.weight[None, ...].repeat(bs, 1, 1) # [B, num_q, embed_dims]
+        query_embedding = self.query_embedding.weight[None, ...].repeat(bs, 1, 1)  # [B, num_q, embed_dims]
         input_query_num = self.num_queries
         # num query: self.num_query + self.topk
         if self.streaming_query:
             query_embedding, prop_query_embedding, init_reference_points, prop_ref_pts, memory_query, is_first_frame_list, trans_loss = \
                 self.propagate(query_embedding, img_metas, return_loss=True)
-            
+
         else:
-            init_reference_points = self.reference_points_embed(query_embedding).sigmoid() # (bs, num_q, 2*num_pts)
-            init_reference_points = init_reference_points.view(-1, self.num_queries, self.num_points, 2) # (bs, num_q, num_pts, 2)
+            init_reference_points = self.reference_points_embed(query_embedding).sigmoid()  # (bs, num_q, 2*num_pts)
+            init_reference_points = init_reference_points.view(-1, self.num_queries, self.num_points,
+                                                               2)  # (bs, num_q, num_pts, 2)
             prop_query_embedding = None
             prop_ref_pts = None
             is_first_frame_list = [True for i in range(bs)]
-        
+
         assert list(init_reference_points.shape) == [bs, self.num_queries, self.num_points, 2]
         assert list(query_embedding.shape) == [bs, self.num_queries, self.embed_dims]
 
         # outs_dec: (num_layers, num_qs, bs, embed_dims)
-        inter_queries, init_reference, inter_references = self.transformer(
-            mlvl_feats=[bev_features,],
+        inter_queries, init_reference, inter_references = self.transformer(  # inter_queries:list:6,每个list为torch.Size([4, 100, 512]), init_reference:torch.Size([4, 100, 20, 2]), inter_reference:list:6,每个list为torch.Size([4, 100, 20, 2])
+            mlvl_feats=[bev_features, ],
             mlvl_masks=[img_masks.type(torch.bool)],
             query_embed=query_embedding,
             prop_query=prop_query_embedding,
-            mlvl_pos_embeds=[pos_embed], # not used
+            mlvl_pos_embeds=[pos_embed],  # not used
             memory_query=None,
-            init_reference_points=init_reference_points,
+            init_reference_points=init_reference_points,  # torch.Size([4, 100, 20, 2])
             prop_reference_points=prop_ref_pts,
             reg_branches=self.reg_branches,
             cls_branches=self.cls_branches,
             predict_refine=self.predict_refine,
             is_first_frame_list=is_first_frame_list,
-            query_key_padding_mask=query_embedding.new_zeros((bs, self.num_queries), dtype=torch.bool), # mask used in self-attn,
+            query_key_padding_mask=query_embedding.new_zeros((bs, self.num_queries), dtype=torch.bool),
+            # mask used in self-attn,
         )
         outputs = []
         for i, (queries) in enumerate(inter_queries):
-            reg_points = inter_references[i] # (bs, num_q, num_points, 2)
+            reg_points = inter_references[i]  # (bs, num_q, num_points, 2)
             bs = reg_points.shape[0]
-            reg_points = reg_points.view(bs, -1, 2*self.num_points) # (bs, num_q, 2*num_points)
+            reg_points = reg_points.view(bs, -1, 2 * self.num_points)  # (bs, num_q, 2*num_points)
 
-            scores = self.cls_branches[i](queries) # (bs, num_q, num_classes)
+            scores = self.cls_branches[i](queries)  # (bs, num_q, num_classes)
 
             reg_points_list = []
             scores_list = []
@@ -371,30 +374,30 @@ class MapDetectorHead(nn.Module):
                 'scores': scores_list
             }
             outputs.append(pred_dict)
-        
+
         loss_dict, det_match_idxs, det_match_gt_idxs, gt_lines_list = self.loss(gts=gts, preds=outputs)
         if self.streaming_query:
             query_list = []
             ref_pts_list = []
             gt_targets_list = []
             lines, scores = outputs[-1]['lines'], outputs[-1]['scores']
-            gt_lines = gt_lines_list[-1] # take results from the last layer
+            gt_lines = gt_lines_list[-1]  # take results from the last layer
 
             for i in range(bs):
                 _lines = lines[i]
                 _queries = inter_queries[-1][i]
                 _scores = scores[i]
-                _gt_targets = gt_lines[i] # (num_q or num_q+topk, 20, 2)
+                _gt_targets = gt_lines[i]  # (num_q or num_q+topk, 20, 2)
                 assert len(_lines) == len(_queries)
                 assert len(_lines) == len(_gt_targets)
 
                 _scores, _ = _scores.max(-1)
                 topk_score, topk_idx = _scores.topk(k=self.topk_query, dim=-1)
 
-                _queries = _queries[topk_idx] # (topk, embed_dims)
-                _lines = _lines[topk_idx] # (topk, 2*num_pts)
-                _gt_targets = _gt_targets[topk_idx] # (topk, 20, 2)
-                
+                _queries = _queries[topk_idx]  # (topk, embed_dims)
+                _lines = _lines[topk_idx]  # (topk, 2*num_pts)
+                _gt_targets = _gt_targets[topk_idx]  # (topk, 20, 2)
+
                 query_list.append(_queries)
                 ref_pts_list.append(_lines.view(-1, self.num_points, 2))
                 gt_targets_list.append(_gt_targets.view(-1, self.num_points, 2))
@@ -406,7 +409,7 @@ class MapDetectorHead(nn.Module):
             loss_dict['trans_loss'] = trans_loss
 
         return outputs, loss_dict, det_match_idxs, det_match_gt_idxs
-    
+
     def forward_test(self, bev_features, img_metas):
         '''
         Args:
@@ -428,30 +431,31 @@ class MapDetectorHead(nn.Module):
         # pos_embed = self.positional_encoding(img_masks)
         pos_embed = None
 
-        query_embedding = self.query_embedding.weight[None, ...].repeat(bs, 1, 1) # [B, num_q, embed_dims]
+        query_embedding = self.query_embedding.weight[None, ...].repeat(bs, 1, 1)  # [B, num_q, embed_dims]
         input_query_num = self.num_queries
         # num query: self.num_query + self.topk
         if self.streaming_query:
             query_embedding, prop_query_embedding, init_reference_points, prop_ref_pts, memory_query, is_first_frame_list = \
                 self.propagate(query_embedding, img_metas, return_loss=False)
-            
+
         else:
-            init_reference_points = self.reference_points_embed(query_embedding).sigmoid() # (bs, num_q, 2*num_pts)
-            init_reference_points = init_reference_points.view(-1, self.num_queries, self.num_points, 2) # (bs, num_q, num_pts, 2)
+            init_reference_points = self.reference_points_embed(query_embedding).sigmoid()  # (bs, num_q, 2*num_pts)
+            init_reference_points = init_reference_points.view(-1, self.num_queries, self.num_points,
+                                                               2)  # (bs, num_q, num_pts, 2)
             prop_query_embedding = None
             prop_ref_pts = None
             is_first_frame_list = [True for i in range(bs)]
-        
+
         assert list(init_reference_points.shape) == [bs, input_query_num, self.num_points, 2]
         assert list(query_embedding.shape) == [bs, input_query_num, self.embed_dims]
 
         # outs_dec: (num_layers, num_qs, bs, embed_dims)
         inter_queries, init_reference, inter_references = self.transformer(
-            mlvl_feats=[bev_features,],
+            mlvl_feats=[bev_features, ],
             mlvl_masks=[img_masks.type(torch.bool)],
             query_embed=query_embedding,
             prop_query=prop_query_embedding,
-            mlvl_pos_embeds=[pos_embed], # not used
+            mlvl_pos_embeds=[pos_embed],  # not used
             memory_query=None,
             init_reference_points=init_reference_points,
             prop_reference_points=prop_ref_pts,
@@ -459,15 +463,16 @@ class MapDetectorHead(nn.Module):
             cls_branches=self.cls_branches,
             predict_refine=self.predict_refine,
             is_first_frame_list=is_first_frame_list,
-            query_key_padding_mask=query_embedding.new_zeros((bs, self.num_queries), dtype=torch.bool), # mask used in self-attn,
+            query_key_padding_mask=query_embedding.new_zeros((bs, self.num_queries), dtype=torch.bool),
+            # mask used in self-attn,
         )
 
         outputs = []
         for i, (queries) in enumerate(inter_queries):
-            reg_points = inter_references[i] # (bs, num_q, num_points, 2)
+            reg_points = inter_references[i]  # (bs, num_q, num_points, 2)
             bs = reg_points.shape[0]
-            reg_points = reg_points.view(bs, -1, 2*self.num_points) # (bs, num_q, 2*num_points)
-            scores = self.cls_branches[i](queries) # (bs, num_q, num_classes)
+            reg_points = reg_points.view(bs, -1, 2 * self.num_points)  # (bs, num_q, 2*num_points)
+            scores = self.cls_branches[i](queries)  # (bs, num_q, num_classes)
 
             reg_points_list = []
             scores_list = []
@@ -476,7 +481,7 @@ class MapDetectorHead(nn.Module):
                 # padding queries should not be output
                 reg_points_list.append(reg_points[i])
                 scores_list.append(scores[i])
-                prop_mask = scores.new_ones((len(scores[i]), ), dtype=torch.bool)
+                prop_mask = scores.new_ones((len(scores[i]),), dtype=torch.bool)
                 prop_mask[-self.num_queries:] = False
                 prop_mask_list.append(prop_mask)
 
@@ -486,7 +491,7 @@ class MapDetectorHead(nn.Module):
                 'prop_mask': prop_mask_list
             }
             outputs.append(pred_dict)
-        
+
         if self.streaming_query:
             query_list = []
             ref_pts_list = []
@@ -499,9 +504,9 @@ class MapDetectorHead(nn.Module):
                 _scores, _ = _scores.max(-1)
                 topk_score, topk_idx = _scores.topk(k=self.topk_query, dim=-1)
 
-                _queries = _queries[topk_idx] # (topk, embed_dims)
-                _lines = _lines[topk_idx] # (topk, 2*num_pts)
-                
+                _queries = _queries[topk_idx]  # (topk, embed_dims)
+                _lines = _lines[topk_idx]  # (topk, 2*num_pts)
+
                 query_list.append(_queries)
                 ref_pts_list.append(_lines.view(-1, self.num_points, 2))
 
@@ -529,7 +534,7 @@ class MapDetectorHead(nn.Module):
                     shape [num_gt, ]
                 gt_lines (Tensor):
                     shape [num_gt, 2*num_points].
-                
+
             Returns:
                 tuple[Tensor]: a tuple containing the following for one sample.
                     - labels (LongTensor): Labels of each image.
@@ -545,10 +550,10 @@ class MapDetectorHead(nn.Module):
         """
         num_pred_lines = len(lines_pred)
         # assigner and sampler
-        assign_result, gt_permute_idx = self.assigner.assign(preds=dict(lines=lines_pred, scores=score_pred,),
-                                             gts=dict(lines=gt_lines,
-                                                      labels=gt_labels, ),
-                                             gt_bboxes_ignore=gt_bboxes_ignore)
+        assign_result, gt_permute_idx = self.assigner.assign(preds=dict(lines=lines_pred, scores=score_pred, ),
+                                                             gts=dict(lines=gt_lines,
+                                                                      labels=gt_labels, ),
+                                                             gt_bboxes_ignore=gt_bboxes_ignore)
         sampling_result = self.sampler.sample(
             assign_result, lines_pred, gt_lines)
         num_gt = len(gt_lines)
@@ -557,15 +562,15 @@ class MapDetectorHead(nn.Module):
         pos_gt_inds = sampling_result.pos_assigned_gt_inds
 
         labels = gt_lines.new_full(
-                (num_pred_lines, ), self.num_classes, dtype=torch.long) # (num_q, )
+            (num_pred_lines,), self.num_classes, dtype=torch.long)  # (num_q, )
         labels[pos_inds] = gt_labels[sampling_result.pos_assigned_gt_inds]
-        label_weights = gt_lines.new_ones(num_pred_lines) # (num_q, )
+        label_weights = gt_lines.new_ones(num_pred_lines)  # (num_q, )
 
-        lines_target = torch.zeros_like(lines_pred) # (num_q, 2*num_pts)
-        lines_weights = torch.zeros_like(lines_pred) # (num_q, 2*num_pts)
-        
+        lines_target = torch.zeros_like(lines_pred)  # (num_q, 2*num_pts)
+        lines_weights = torch.zeros_like(lines_pred)  # (num_q, 2*num_pts)
+
         if num_gt > 0:
-            if gt_permute_idx is not None: # using permute invariant label
+            if gt_permute_idx is not None:  # using permute invariant label
                 # gt_permute_idx: (num_q, num_gt)
                 # pos_inds: which query is positive
                 # pos_gt_inds: which gt each pos pred is assigned
@@ -574,12 +579,12 @@ class MapDetectorHead(nn.Module):
                     pos_inds, pos_gt_inds
                 ]
                 lines_target[pos_inds] = gt_lines[pos_gt_inds, single_matched_gt_permute_idx].type(
-                    lines_target.dtype) # (num_q, 2*num_pts)
+                    lines_target.dtype)  # (num_q, 2*num_pts)
             else:
                 lines_target[pos_inds] = sampling_result.pos_gt_bboxes.type(
-                    lines_target.dtype) # (num_q, 2*num_pts)
-        
-        lines_weights[pos_inds] = 1.0 # (num_q, 2*num_pts)
+                    lines_target.dtype)  # (num_q, 2*num_pts)
+
+        lines_weights[pos_inds] = 1.0  # (num_q, 2*num_pts)
 
         # normalization
         # n = lines_weights.sum(-1, keepdim=True) # (num_q, 1)
@@ -595,7 +600,7 @@ class MapDetectorHead(nn.Module):
             Compute regression and classification targets for a batch image.
             Outputs from a single decoder layer of a single feature level are used.
             Args:
-                preds (dict): 
+                preds (dict):
                     - lines (Tensor): shape (bs, num_queries, 2*num_points)
                     - scores (Tensor): shape (bs, num_queries, num_class_channels)
                 gts (dict):
@@ -627,18 +632,18 @@ class MapDetectorHead(nn.Module):
         lines_pred = preds['lines']
 
         (labels_list, label_weights_list,
-        lines_targets_list, lines_weights_list,
-        pos_inds_list, neg_inds_list,pos_gt_inds_list) = multi_apply(
+         lines_targets_list, lines_weights_list,
+         pos_inds_list, neg_inds_list, pos_gt_inds_list) = multi_apply(
             self._get_target_single, preds['scores'], lines_pred,
             gt_labels, gt_lines, gt_bboxes_ignore=gt_bboxes_ignore_list)
-        
+
         num_total_pos = sum((inds.numel() for inds in pos_inds_list))
         num_total_neg = sum((inds.numel() for inds in neg_inds_list))
         new_gts = dict(
-            labels=labels_list, # list[Tensor(num_q, )], length=bs
-            label_weights=label_weights_list, # list[Tensor(num_q, )], length=bs, all ones
-            lines=lines_targets_list, # list[Tensor(num_q, 2*num_pts)], length=bs
-            lines_weights=lines_weights_list, # list[Tensor(num_q, 2*num_pts)], length=bs
+            labels=labels_list,  # list[Tensor(num_q, )], length=bs
+            label_weights=label_weights_list,  # list[Tensor(num_q, )], length=bs, all ones
+            lines=lines_targets_list,  # list[Tensor(num_q, 2*num_pts)], length=bs
+            lines_weights=lines_weights_list,  # list[Tensor(num_q, 2*num_pts)], length=bs
         )
 
         return new_gts, num_total_pos, num_total_neg, pos_inds_list, pos_gt_inds_list
@@ -653,7 +658,7 @@ class MapDetectorHead(nn.Module):
             Loss function for outputs from a single decoder layer of a single
             feature level.
             Args:
-                preds (dict): 
+                preds (dict):
                     - lines (Tensor): shape (bs, num_queries, 2*num_points)
                     - scores (Tensor): shape (bs, num_queries, num_class_channels)
                 gts (dict):
@@ -667,7 +672,7 @@ class MapDetectorHead(nn.Module):
         """
 
         # Get target for each sample
-        new_gts, num_total_pos, num_total_neg, pos_inds_list, pos_gt_inds_list =\
+        new_gts, num_total_pos, num_total_neg, pos_inds_list, pos_gt_inds_list = \
             self.get_targets(preds, gts, gt_bboxes_ignore_list)
 
         # Batched all data
@@ -676,8 +681,8 @@ class MapDetectorHead(nn.Module):
 
         # construct weighted avg_factor to match with the official DETR repo
         cls_avg_factor = num_total_pos * 1.0 + \
-            num_total_neg * self.bg_cls_weight
-        
+                         num_total_neg * self.bg_cls_weight
+
         if self.sync_cls_avg_factor:
             cls_avg_factor = reduce_mean(
                 preds['scores'][0].new_tensor([cls_avg_factor]))
@@ -685,14 +690,14 @@ class MapDetectorHead(nn.Module):
 
         # Classification loss
         # since the inputs needs the second dim is the class dim, we permute the prediction.
-        pred_scores = torch.cat(preds['scores'], dim=0) # (bs*num_q, cls_out_channles)
-        cls_scores = pred_scores.reshape(-1, self.cls_out_channels) # (bs*num_q, cls_out_channels)
-        cls_labels = torch.cat(new_gts['labels'], dim=0).reshape(-1) # (bs*num_q, )
-        cls_weights = torch.cat(new_gts['label_weights'], dim=0).reshape(-1) # (bs*num_q, )
-        
+        pred_scores = torch.cat(preds['scores'], dim=0)  # (bs*num_q, cls_out_channles)
+        cls_scores = pred_scores.reshape(-1, self.cls_out_channels)  # (bs*num_q, cls_out_channels)
+        cls_labels = torch.cat(new_gts['labels'], dim=0).reshape(-1)  # (bs*num_q, )
+        cls_weights = torch.cat(new_gts['label_weights'], dim=0).reshape(-1)  # (bs*num_q, )
+
         loss_cls = self.loss_cls(
             cls_scores, cls_labels, cls_weights, avg_factor=cls_avg_factor)
-        
+
         # Compute the average number of gt boxes across all gpus, for
         # normalization purposes
         num_total_pos = loss_cls.new_tensor([num_total_pos])
@@ -714,7 +719,7 @@ class MapDetectorHead(nn.Module):
         )
 
         return loss_dict, pos_inds_list, pos_gt_inds_list, new_gts['lines']
-    
+
     @force_fp32(apply_to=('gt_lines_list', 'preds_dicts'))
     def loss(self,
              gts,
@@ -735,7 +740,7 @@ class MapDetectorHead(nn.Module):
                         'lines': tensor(bs, num_queries, 2*num_points),
                         'scores': tensor(bs, num_queries, class_out_channels),
                     }
-                    
+
                 gt_bboxes_ignore (list[Tensor], optional): Bounding boxes
                     which can be ignored for each image. Default None.
             Returns:
@@ -754,7 +759,7 @@ class MapDetectorHead(nn.Module):
         # loss from the last decoder layer
         for k, v in losses[-1].items():
             loss_dict[k] = v
-        
+
         # Loss from other decoder layers
         num_dec_layer = 0
         for loss in losses[:-1]:
@@ -763,11 +768,11 @@ class MapDetectorHead(nn.Module):
             num_dec_layer += 1
 
         return loss_dict, pos_inds_lists, pos_gt_inds_lists, gt_lines_list
-    
+
     def post_process(self, preds_dict, tokens, thr=0.0):
-        lines = preds_dict['lines'] # List[Tensor(num_queries, 2*num_points)]
+        lines = preds_dict['lines']  # List[Tensor(num_queries, 2*num_points)]
         bs = len(lines)
-        scores = preds_dict['scores'] # (bs, num_queries, 3)
+        scores = preds_dict['scores']  # (bs, num_queries, 3)
         prop_mask = preds_dict['prop_mask']
 
         results = []
@@ -775,7 +780,7 @@ class MapDetectorHead(nn.Module):
             tmp_vectors = lines[i]
             tmp_prop_mask = prop_mask[i]
             num_preds, num_points2 = tmp_vectors.shape
-            tmp_vectors = tmp_vectors.view(num_preds, num_points2//2, 2)
+            tmp_vectors = tmp_vectors.view(num_preds, num_points2 // 2, 2)
             # focal loss
             if self.loss_cls.use_sigmoid:
                 tmp_scores, tmp_labels = scores[i].max(-1)
@@ -794,12 +799,12 @@ class MapDetectorHead(nn.Module):
 
             if len(tmp_scores) == 0:
                 single_result = {
-                'vectors': [],
-                'scores': [],
-                'labels': [],
-                'prop_mask': [],
-                'token': tokens[i]
-            }
+                    'vectors': [],
+                    'scores': [],
+                    'labels': [],
+                    'prop_mask': [],
+                    'token': tokens[i]
+                }
             else:
                 single_result = {
                     'vectors': tmp_vectors.detach().cpu().numpy(),
@@ -809,7 +814,7 @@ class MapDetectorHead(nn.Module):
                     'token': tokens[i]
                 }
             results.append(single_result)
-        
+
         return results
 
     def train(self, *args, **kwargs):
@@ -817,7 +822,7 @@ class MapDetectorHead(nn.Module):
         for k, v in self.__dict__.items():
             if isinstance(v, StreamTensorMemory):
                 v.train(*args, **kwargs)
-    
+
     def eval(self):
         super().eval()
         for k, v in self.__dict__.items():

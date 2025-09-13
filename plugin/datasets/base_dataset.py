@@ -200,6 +200,15 @@ class BaseMapDataset(Dataset):
             print(f'saving submissions results to {out_path}')
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             mmcv.dump(submissions, out_path)
+            # import pickle
+            #
+            # # 修改扩展名为 .pkl
+            # if out_path.endswith('.json'):
+            #     out_path = out_path.replace('.json', '.pkl')
+            #
+            # # 使用二进制模式保存 pickle 文件
+            # with open(out_path, 'wb') as f:
+            #     pickle.dump(submissions, f, protocol=pickle.HIGHEST_PROTOCOL)
             return out_path
         
         else:
@@ -237,6 +246,70 @@ class BaseMapDataset(Dataset):
         result_dict = self.evaluator.evaluate(result_path, logger=logger)
         return result_dict
 
+    # def show_gt(self, idx, out_dir='demo/'):
+    #     '''可视化ground-truth数据'''
+    #     from mmcv.parallel import DataContainer
+    #     from copy import deepcopy
+    #     import numpy as np
+    #     from scipy.interpolate import interp1d
+    #
+    #     sample = self.get_sample(idx)
+    #     data = self.pipeline(deepcopy(sample))
+    #
+    #     imgs = [mmcv.imread(i) for i in sample['img_filenames']]
+    #     cam_extrinsics = sample['cam_extrinsics']
+    #     cam_intrinsics = sample['cam_intrinsics']
+    #
+    #     if 'vectors' in data:
+    #         vectors = data['vectors']
+    #         if isinstance(vectors, DataContainer):
+    #             vectors = vectors.data
+    #
+    #         roi_size = np.array(self.roi_size)
+    #         origin = -np.array([self.roi_size[0] / 2, self.roi_size[1] / 2])
+    #
+    #         # 处理每个类别的向量
+    #         for k, vector_list in vectors.items():
+    #             processed_vectors = []
+    #             for v in vector_list:
+    #                 # 反归一化坐标
+    #                 v_denorm = v.copy()
+    #                 v_denorm[:, :2] = v_denorm[:, :2] * (roi_size + 1e-5) + origin
+    #
+    #                 # 如果点数不是20且至少有2点，进行插值到20个点
+    #                 if len(v_denorm) != 20 and len(v_denorm) >= 2:
+    #                     try:
+    #                         # 创建参数空间
+    #                         t_old = np.linspace(0, 1, len(v_denorm))
+    #                         t_new = np.linspace(0, 1, 20)
+    #
+    #                         # 创建新向量
+    #                         v_new = np.zeros((20, v_denorm.shape[1]))
+    #
+    #                         # 对每个维度进行插值
+    #                         for dim in range(v_denorm.shape[1]):
+    #                             f = interp1d(t_old, v_denorm[:, dim], kind='linear')
+    #                             v_new[:, dim] = f(t_new)
+    #
+    #                         processed_vectors.append(v_new)
+    #                     except:
+    #                         processed_vectors.append(v_denorm)
+    #                 else:
+    #                     processed_vectors.append(v_denorm)
+    #
+    #             # 更新向量列表
+    #             vectors[k] = processed_vectors
+    #
+    #         self.renderer.render_bev_from_vectors(vectors, out_dir)
+    #         self.renderer.render_camera_views_from_vectors(vectors, imgs,
+    #                                                        cam_extrinsics, cam_intrinsics, 2, out_dir)
+    #
+    #     if 'semantic_mask' in data:
+    #         semantic_mask = data['semantic_mask']
+    #         if isinstance(semantic_mask, DataContainer):
+    #             semantic_mask = semantic_mask.data
+    #
+    #         self.renderer.render_bev_from_mask(semantic_mask, out_dir)
     def show_gt(self, idx, out_dir='demo/'):
         '''Visualize ground-truth.
 
@@ -260,7 +333,7 @@ class BaseMapDataset(Dataset):
         if 'vectors' in data:
             vectors = data['vectors']
             if isinstance(vectors, DataContainer):
-                vectors = vectors.data
+                vectors = vectors.data  # dict:3 ,vectors[1]:list:2,vectors[1][0]:ndarray:(2, 2)
             roi_size = np.array(self.roi_size)
             origin = -np.array([self.roi_size[0]/2, self.roi_size[1]/2])
 
@@ -269,16 +342,16 @@ class BaseMapDataset(Dataset):
             #         v = vector_list[i]
             #         v[:, :2] = v[:, :2] * (roi_size + 1e-5) + origin
             #         vector_list[i] = v
-            
+
             self.renderer.render_bev_from_vectors(vectors, out_dir)
-            self.renderer.render_camera_views_from_vectors(vectors, imgs, 
+            self.renderer.render_camera_views_from_vectors(vectors, imgs,
                 cam_extrinsics, cam_intrinsics, 2, out_dir)
 
         if 'semantic_mask' in data:
             semantic_mask = data['semantic_mask']
             if isinstance(semantic_mask, DataContainer):
                 semantic_mask = semantic_mask.data
-            
+
             self.renderer.render_bev_from_mask(semantic_mask, out_dir)
 
     def show_result(self, submission, idx, score_thr=0, draw_score=False, out_dir='demo/'):
@@ -348,4 +421,3 @@ class BaseMapDataset(Dataset):
         input_dict = self.get_sample(idx)
         data = self.pipeline(input_dict)
         return data
-

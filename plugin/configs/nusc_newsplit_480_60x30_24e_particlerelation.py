@@ -20,9 +20,9 @@ img_size = (img_h, img_w)
 num_gpus = 8
 batch_size = 4
 num_iters_per_epoch = 27846 // (num_gpus * batch_size)
-num_epochs = 30
-total_iters = num_iters_per_epoch * num_epochs
-
+num_epochs = 24
+num_epochs_single_frame = num_epochs // 6
+total_iters = num_epochs * num_iters_per_epoch
 num_queries = 100
 
 # category configs
@@ -34,7 +34,7 @@ cat2id = {
 num_class = max(list(cat2id.values())) + 1
 
 # bev configs
-roi_size = (60, 30)
+roi_size = (60, 30) # bev range, 60m in x-axis, 30m in y-axis
 bev_h = 50
 bev_w = 100
 pc_range = [-roi_size[0]/2, -roi_size[1]/2, -3, roi_size[0]/2, roi_size[1]/2, 5]
@@ -62,6 +62,20 @@ norm_cfg = dict(type='BN2d')
 num_class = max(list(cat2id.values()))+1
 num_points = 20
 permute = True
+
+# 扩散模型配置
+diffusion_cfg = dict(
+    NUM_CLASSES=num_class,
+    NUM_PROPOSALS=num_queries,
+    HIDDEN_DIM=embed_dims,
+    NUM_HEADS=8,
+    SAMPLE_STEP=8,      # DDIM采样步数
+    SNR_SCALE=10.0,     # 信噪比缩放
+    RADIAL_SUPPRESSION_RADIUS=1.0,  # 径向抑制半径
+    BOX_RENEWAL_THRESHOLD=0.5,      # 框更新阈值
+    NMS_THRESHOLD=0.7,              # NMS阈值
+    DDIM_QUERY_TYPE='both',         # 查询类型
+)
 
 model = dict(
     type='PSKDNet',
@@ -138,7 +152,14 @@ model = dict(
             ),
     ),
     head_cfg=dict(
-        type='MapDetectorHead',
+        type='ParticleMapDetectorHead',
+
+        use_particle_transformer=True, 
+        num_bevformer_queries=num_queries,
+        num_diffusion_queries=num_queries, 
+        diffusion_loss_weight=1.0, 
+        diffusion_cfg=diffusion_cfg, 
+
         num_queries=num_queries,
         embed_dims=embed_dims,
         num_classes=num_class,
@@ -149,22 +170,31 @@ model = dict(
         different_heads=False,
         predict_refine=False,
         sync_cls_avg_factor=True,
-        streaming_cfg=dict(),
+        streaming_cfg=dict(
+            streaming=True,
+            batch_size=batch_size,
+            topk=int(num_queries*(1/3)),
+            trans_loss_weight=0.1,
+        ),
         transformer=dict(
-            type='MapTransformer',
+            type='ParticleTransformer', 
             num_feature_levels=1,
             num_points=num_points,
             coord_dim=2,
+            # pc_range=pc_range,
+            diffusion_cfg=diffusion_cfg,
+            scale=diffusion_cfg.get('SNR_SCALER', 10.0), 
             encoder=dict(
                 type='PlaceHolderEncoder',
                 embed_dims=embed_dims,
             ),
             decoder=dict(
-                type='MapTransformerDecoder_new',
+                type='ParticleTransformerDecoder',
                 num_layers=6,
+                prop_add_stage=1,
                 return_intermediate=True,
                 transformerlayers=dict(
-                    type='MapTransformerLayer',
+                    type='ParticleTransformerDecoderLayer',
                     attn_cfgs=[
                         dict(
                             type='MultiheadAttention',
@@ -192,8 +222,6 @@ model = dict(
                     ),
                     feedforward_channels=embed_dims*2,
                     ffn_dropout=0.1,
-                    # operation_order=('norm', 'self_attn', 'norm', 'cross_attn',
-                    #                 'norm', 'ffn',)
                     operation_order=('self_attn', 'norm', 'cross_attn', 'norm',
                                     'ffn', 'norm')
                 )
@@ -204,7 +232,7 @@ model = dict(
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            loss_weight=4.0
+            loss_weight=5.0
         ),
         loss_reg=dict(
             type='LinesL1Loss',
@@ -215,14 +243,22 @@ model = dict(
             type='HungarianLinesAssigner',
                 cost=dict(
                     type='MapQueriesCost',
-                    cls_cost=dict(type='FocalLossCost', weight=4.0),
+                    cls_cost=dict(type='FocalLossCost', weight=5.0),
                     reg_cost=dict(type='LinesL1Cost', weight=50.0, beta=0.01, permute=permute),
                     ),
                 ),
         ),
-    streaming_cfg=dict(),
+    streaming_cfg=dict(
+        streaming_bev=True,
+        batch_size=batch_size,
+        fusion_cfg=dict(
+            type='ConvGRU',
+            out_channels=bev_embed_dims,
+        )
+    ),
     model_name='SingleStage'
 )
+
 
 # data processing pipelines
 train_pipeline = [
@@ -268,7 +304,7 @@ test_pipeline = [
 eval_config = dict(
     type='NuscDataset',
     data_root='./data/nuscenes',
-    ann_file='./data/nuscenes/nuscenes_map_infos_val.pkl',
+    ann_file='./data/nuscenes/nuscenes_map_infos_val_newsplit.pkl',
     meta=meta,
     roi_size=roi_size,
     cat2id=cat2id,
@@ -293,39 +329,42 @@ data = dict(
     train=dict(
         type='NuscDataset',
         data_root='./data/nuscenes',
-        ann_file='./data/nuscenes/nuscenes_map_infos_train.pkl',
+        ann_file='./data/nuscenes/nuscenes_map_infos_train_newsplit.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,
         pipeline=train_pipeline,
-        seq_split_num=-1,
+        seq_split_num=1,
     ),
     val=dict(
         type='NuscDataset',
         data_root='./data/nuscenes',
-        ann_file='./data/nuscenes/nuscenes_map_infos_val.pkl',
+        ann_file='./data/nuscenes/nuscenes_map_infos_val_newsplit.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,
         pipeline=test_pipeline,
         eval_config=eval_config,
         test_mode=True,
-        seq_split_num=-1,
+        seq_split_num=1,
     ),
     test=dict(
         type='NuscDataset',
         data_root='./data/nuscenes',
-        ann_file='./data/nuscenes/nuscenes_map_infos_val.pkl',
+        ann_file='./data/nuscenes/nuscenes_map_infos_val_newsplit.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,
         pipeline=test_pipeline,
         eval_config=eval_config,
         test_mode=True,
-        seq_split_num=-1,
+        seq_split_num=1,
     ),
     shuffler_sampler=dict(
         type='InfiniteGroupEachSampleInBatchSampler',
+        seq_split_num=2,
+        num_iters_to_seq=num_epochs_single_frame*num_iters_per_epoch,
+        random_drop=0.0
     ),
     nonshuffler_sampler=dict(type='DistributedSampler')
 )
@@ -333,13 +372,13 @@ data = dict(
 # optimizer
 optimizer = dict(
     type='AdamW',
-    lr=5e-4 * (batch_size / 4),
+    lr=5e-4 * (batch_size / 4),  # default 5e-4
     paramwise_cfg=dict(
         custom_keys={
             'img_backbone': dict(lr_mult=0.1),
         }),
     weight_decay=1e-2)
-optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
+optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))  # default 35
 
 # learning policy & schedule
 lr_config = dict(
@@ -349,9 +388,12 @@ lr_config = dict(
     warmup_ratio=1.0 / 3,
     min_lr_ratio=3e-3)
 
-evaluation = dict(interval=num_epochs//6*num_iters_per_epoch)
-find_unused_parameters = False #### when use checkpoint, find_unused_parameters must be False
-checkpoint_config = dict(interval=num_epochs//6*num_iters_per_epoch)
+evaluation = dict(interval=num_epochs_single_frame*num_iters_per_epoch*6)
+# evaluation = dict(interval=1)
+find_unused_parameters = True #### when use checkpoint, find_unused_parameters must be False
+checkpoint_config = dict(interval=num_epochs_single_frame*num_iters_per_epoch)
+# checkpoint_config = dict(interval=1)
+
 
 runner = dict(
     type='IterBasedRunner', max_iters=num_epochs * num_iters_per_epoch)

@@ -64,7 +64,7 @@ num_points = 20
 permute = True
 
 model = dict(
-    type='StreamMapNet',
+    type='PSKDNet',
     roi_size=roi_size,
     bev_h=bev_h,
     bev_w=bev_w,
@@ -280,8 +280,8 @@ test_pipeline = [
 # DO NOT CHANGE
 eval_config = dict(
     type='NuscDataset',
-    data_root='./datasets/nuScenes',
-    ann_file='./datasets/nuScenes/nuscenes_map_infos_val_newsplit.pkl',
+    data_root='./data/nuscenes',
+    ann_file='./data/nuscenes/nuscenes_map_infos_val_newsplit.pkl',
     meta=meta,
     roi_size=roi_size,
     cat2id=cat2id,
@@ -305,8 +305,8 @@ data = dict(
     workers_per_gpu=4,
     train=dict(
         type='NuscDataset',
-        data_root='./datasets/nuScenes',
-        ann_file='./datasets/nuScenes/nuscenes_map_infos_train_newsplit.pkl',
+        data_root='./data/nuscenes',
+        ann_file='./data/nuscenes/nuscenes_map_infos_train_newsplit.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,
@@ -315,8 +315,8 @@ data = dict(
     ),
     val=dict(
         type='NuscDataset',
-        data_root='./datasets/nuScenes',
-        ann_file='./datasets/nuScenes/nuscenes_map_infos_val_newsplit.pkl',
+        data_root='./data/nuscenes',
+        ann_file='./data/nuscenes/nuscenes_map_infos_val_newsplit.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,
@@ -327,8 +327,8 @@ data = dict(
     ),
     test=dict(
         type='NuscDataset',
-        data_root='./datasets/nuScenes',
-        ann_file='./datasets/nuScenes/nuscenes_map_infos_val_newsplit.pkl',
+        data_root='./data/nuscenes',
+        ann_file='./data/nuscenes/nuscenes_map_infos_val_newsplit.pkl',
         meta=meta,
         roi_size=roi_size,
         cat2id=cat2id,
@@ -366,6 +366,7 @@ lr_config = dict(
     min_lr_ratio=3e-3)
 
 evaluation = dict(interval=num_epochs_single_frame*num_iters_per_epoch)
+# evaluation = dict(interval=1)
 find_unused_parameters = True #### when use checkpoint, find_unused_parameters must be False
 checkpoint_config = dict(interval=num_epochs_single_frame*num_iters_per_epoch)
 

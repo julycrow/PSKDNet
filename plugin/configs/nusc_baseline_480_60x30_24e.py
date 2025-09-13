@@ -20,7 +20,7 @@ img_size = (img_h, img_w)
 num_gpus = 8
 batch_size = 4
 num_iters_per_epoch = 27846 // (num_gpus * batch_size)
-num_epochs = 30
+num_epochs = 24
 total_iters = num_iters_per_epoch * num_epochs
 
 num_queries = 100
@@ -350,7 +350,7 @@ lr_config = dict(
     min_lr_ratio=3e-3)
 
 evaluation = dict(interval=num_epochs//6*num_iters_per_epoch)
-find_unused_parameters = False #### when use checkpoint, find_unused_parameters must be False
+find_unused_parameters = True #### when use checkpoint, find_unused_parameters must be False
 checkpoint_config = dict(interval=num_epochs//6*num_iters_per_epoch)
 
 runner = dict(
